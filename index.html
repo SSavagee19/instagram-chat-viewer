@@ -1,45 +1,47 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b0c10"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><title>Instagram chat viewer</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b0c10"><meta name="apple-mobile-web-app-capable" content="yes"><title>Instagram Chat Viewer</title>
 <style>
-:root{color-scheme:dark;--bg:#0b0c10;--panel:#12141b;--panel2:#191c25;--line:#292d39;--text:#f4f5fa;--muted:#9299aa;--pink:#e1306c;--purple:#833ab4;--bubble:#20232d;--mine:#392344;--good:#7dd3a7}*{box-sizing:border-box}
-/* ... rest of CSS omitted for brevity in this commit message area ... */
+:root{color-scheme:dark;--bg:#0b0c10;--panel:#12141b;--panel2:#191c25;--line:#292d39;--text:#f4f5fa;--muted:#9299aa;--pink:#e1306c;--purple:#833ab4;--bubble:#20232d;--mine:#392344;--good:#7dd3a7}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial}/* styles omitted for brevity */
 </style></head><body><div class="app" id="app">
 <!-- UI markup omitted for brevity -->
+
+<!-- ZIP import panel will be injected by public/js/zip-import-ui.js if present -->
+
 <script>
-(()=>{'use strict';const $=id=>document.getElementById(id);let conversations=[],active=null,mediaMap=new Map(),allFiles=[],searchResults=[],searchIndex=0,currentTab='overview',stars=new Set(),objectMap=new Map(),toastTimer=null,dbPrefillTimer=null;
+(()=>{'use strict';const $=id=>document.getElementById(id);let conversations=[],active=null,mediaMap=new Map(),allFiles=[],searchResults=[],searchIndex=0,currentTab='overview',stars=new Set(),objects={};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function basename(p){return String(p||'').replace(/\\/g,'/').split('/').pop()}
 function filePath(p){if(!p) return '';return String(p).replace(/\\/g,'/').replace(/^\/+/, '')}
 // other utility functions and app code...
 
-async function persistMedia(files){let failed=0;for(const f of files){try{const key=filePath(f.webkitRelativePath||f.name);if(!await dbPut('media',key,{key,name:f.name,type:f.type||'',lastModified:f.lastModified||0,size:f.size||0}))failed++;}catch(e){failed++}}return failed===0}
+async function persistMedia(files){let failed=0;for(const f of files){try{const key=filePath(f.webkitRelativePath||f.name);if(!await dbPut('media',key,{key,name:f.name,type:f.type||'',lastModified:f.lastModified||Date.now()})){failed++}}catch(e){failed++;console.warn('persistMedia item failed',e)}}return failed}
 
 // Previous mediaFiles handler replaced with a more robust importer that preserves folder paths
-$('mediaFiles').addEventListener('change', async e => {
+$('mediaFiles')?.addEventListener('change', async e => {
   const picked = [...e.target.files];
   if (!picked.length) return;
   for (const f of picked) {
-    // prefer webkitRelativePath (directory picks), fall back to file.name
     const relRaw = f.webkitRelativePath || f.relativePath || f.name;
     const rel = filePath(relRaw);
-    // record by both the full relative path and the basename so lookups from JSON work
     mediaMap.set(rel, f);
     mediaMap.set(basename(rel), f);
     if (!allFiles.includes(rel)) allFiles.push(rel);
   }
-  // persist added files into IndexedDB
-  try {
-    await persistMedia(picked);
-  } catch (err) {
-    console.warn('persistMedia failed', err);
-  }
-  notify(`${picked.length} media files added`);
-  // re-render in case media thumbnails / attachments can now resolve
-  renderConversations();
+  try { await persistMedia(picked); } catch (err) { console.warn('persistMedia failed', err); }
+  notify?.(`${picked.length} media files added`);
+  renderConversations?.();
 });
 
 // remaining app initialization...
 
 })();
-</script><script>if('serviceWorker' in navigator && location.protocol.startsWith('http')){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}</script>
-</body></html>
+</script>
+
+<!-- ZIP importer dependencies and UI (added by feature) -->
+<script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
+<script src="https://unpkg.com/idb/build/iife/index-min.js"></script>
+<script src="./public/js/zip-import.js"></script>
+<script src="./public/js/zip-import-ui.js"></script>
+
+<script>if('serviceWorker' in navigator && location.protocol.startsWith('http')){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}</script>
+</div></body></html>
